@@ -1,41 +1,43 @@
-import requests
+import requests, json, base64
 from bs4 import BeautifulSoup
-import json
+import os
 
 BASE_URL = "https://hdhub4u.fail"
-HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
-}
+HEADERS = {"User-Agent": "Mozilla/5.0"}
 
-def run_scraper():
-    try:
-        print("🔍 Requesting HDHub4u homepage...")
-        res = requests.get(BASE_URL, headers=HEADERS, timeout=20)
-        if res.status_code != 200:
-            print(f"❌ Failed to load homepage: HTTP {res.status_code}")
-            open("data.json", "w").write("[]")
-            return
+def scrape():
+    print("Scraping HDHub4u...")
+    res = requests.get(BASE_URL, headers=HEADERS)
+    soup = BeautifulSoup(res.text, "html.parser")
+    posts = soup.select(".post-title a")
 
-        soup = BeautifulSoup(res.text, "html.parser")
-        posts = soup.select(".post-title a")
-        print(f"✅ Found {len(posts)} posts")
+    movies = []
+    for post in posts[:10]:
+        title = post.get_text(strip=True)
+        url = post['href']
+        mres = requests.get(url, headers=HEADERS)
+        msoup = BeautifulSoup(mres.text, "html.parser")
 
-        data = []
-        for post in posts[:10]:
-            title = post.get_text(strip=True)
-            link = post['href']
-            data.append({"title": title, "link": link})
-            print(f"🎬 {title}")
+        poster = msoup.select_one(".entry-content img")
+        poster = poster["src"] if poster else ""
 
-        with open("data.json", "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2)
+        qualities = {"480p": "", "720p": "", "1080p": ""}
+        for a in msoup.find_all("a", href=True):
+            txt = a.get_text().lower()
+            if "480" in txt: qualities["480p"] = a["href"]
+            if "720" in txt: qualities["720p"] = a["href"]
+            if "1080" in txt: qualities["1080p"] = a["href"]
 
-        print("✅ data.json saved")
+        movies.append({
+            "title": title,
+            "poster": poster,
+            "links": qualities
+        })
 
-    except Exception as e:
-        print(f"❌ Fatal error: {e}")
-        with open("data.json", "w", encoding="utf-8") as f:
-            json.dump([], f)
+    with open("data.json", "w", encoding="utf-8") as f:
+        json.dump(movies, f, indent=2)
+
+    print("✅ data.json created.")
 
 if __name__ == "__main__":
-    run_scraper()
+    scrape()
