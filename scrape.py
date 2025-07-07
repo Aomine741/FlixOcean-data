@@ -18,14 +18,18 @@ def shorten_link(url):
 
 def run_scraper():
     try:
+        print("🔍 Scraping homepage...")
         res = requests.get(VEGAMOVIES_URL, timeout=10)
         soup = BeautifulSoup(res.text, 'html.parser')
         posts = soup.select('.post-title a')
         data = []
 
+        print(f"✅ Found {len(posts)} posts")
+
         for post in posts[:10]:
             title = post.get_text().strip()
             link = post['href']
+            print(f"🎬 Scraping: {title}")
             try:
                 movie_page = requests.get(link, timeout=10)
                 movie_soup = BeautifulSoup(movie_page.text, 'html.parser')
@@ -53,7 +57,8 @@ def run_scraper():
         with open("data.json", "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2)
 
-        print("✅ Scraping done.")
+        print("✅ Scraping complete. Data saved to data.json")
+
     except Exception as e:
         print("❌ Scraper failed:", e)
 
